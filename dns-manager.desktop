@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=DNS Manager
+Comment=Manage DNS settings
+Exec=pkexec /home/realme-book/Project/code/tool/dns
+Terminal=true
+Type=Application
+Icon=network-server
+Categories=Network;System;
+StartupNotify=true
