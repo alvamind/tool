@@ -148,23 +148,21 @@ function displayText(type: 'menu' | 'help') {
   if (type === 'menu') {
     console.log(chalk.bold('\nDNS Manager Menu:'))
     console.log(chalk.gray('-------------------'))
-    console.log(`${chalk.blue('1)')} Set DNS to Cloudflare (1.1.1.1)`)
-    console.log(`${chalk.blue('2)')} Set DNS to custom IP`)
-    console.log(`${chalk.blue('3)')} Restore original DNS settings`)
-    console.log(`${chalk.blue('4)')} Show current DNS configuration`)
-    console.log(`${chalk.blue('5)')} Watch for changes to resolv.conf`)
+    console.log(`${chalk.blue('1)')} Set DNS to custom IP`)
+    console.log(`${chalk.blue('2)')} Restore original DNS settings`)
+    console.log(`${chalk.blue('3)')} Show current DNS configuration`)
     console.log(`${chalk.blue('0)')} Exit`)
-    console.log(chalk.gray('\nNote: Options 1-3 require root privileges'))
+    console.log(chalk.gray('\nNote: Options 1-2 require root privileges'))
   } else {
     console.log(chalk.bold('DNS Manager CLI - Usage:'))
     console.log(chalk.gray('-----------------------'))
     console.log('Enter a number to select an option from the menu')
     console.log('Or use the following commands:')
-    console.log('  set               : Set DNS to Cloudflare (1.1.1.1)')
+    // Removed 'set' without IP as it's automatic on start
     console.log('  set <ip>          : Set DNS to custom IP')
     console.log('  restore           : Restore original DNS settings')
     console.log('  status            : Show current DNS configuration')
-    console.log('  watch             : Watch for changes to resolv.conf')
+    // Removed 'watch' command
     console.log('  exit              : Exit the program')
     console.log('  help              : Show this help message')
     console.log('  menu              : Display the menu')
@@ -175,7 +173,7 @@ function displayText(type: 'menu' | 'help') {
 const createInterface = () => readline.createInterface({
   input: process.stdin,
   output: process.stdout,
-  prompt: chalk.blue('Select option [0-5]: ')
+  prompt: chalk.blue('Select option [0-3]: ') // Updated prompt range
 });
 
 const askForCustomIP = (rl: readline.Interface): Promise<string> => new Promise(resolve => {
@@ -216,7 +214,7 @@ async function processCommand(input: string, rl: readline.Interface) {
   clearConsole();
 
   // Handle numeric menu selections
-  if (/^[0-5]$/.test(trimmedInput)) {
+  if (/^[0-3]$/.test(trimmedInput)) { // Updated regex range
     console.log(chalk.bold(`Selected option: ${trimmedInput}`));
     const option = parseInt(trimmedInput, 10);
 
@@ -224,22 +222,20 @@ async function processCommand(input: string, rl: readline.Interface) {
       case 0: // Exit
         console.log(chalk.green('Goodbye!'));
         return false;
-      case 1: // Set DNS to Cloudflare
-        await modifyDNSWithRoot();
-        break;
-      case 2: // Set DNS to custom IP
+      // Case 1 is now Set Custom IP
+      case 1: // Set DNS to custom IP
         const customIP = await askForCustomIP(rl);
         if (customIP) await modifyDNSWithRoot(customIP);
         break;
-      case 3: // Restore original
+      // Case 2 is now Restore
+      case 2: // Restore original
         await restoreOriginalWithRoot();
         break;
-      case 4: // Show status
+      // Case 3 is now Show Status
+      case 3: // Show status
         await showStatus();
         break;
-      case 5: // Watch for changes
-        await handleWatchMode();
-        break;
+      // Case 5 (Watch) removed
     }
   } else {
     // Handle text commands
@@ -255,9 +251,7 @@ async function processCommand(input: string, rl: readline.Interface) {
       case 'status':
         await showStatus();
         break;
-      case 'watch':
-        await handleWatchMode();
-        break;
+      // Removed 'watch' command case
       case 'exit':
         console.log(chalk.green('Goodbye!'));
         return false;
@@ -271,7 +265,7 @@ async function processCommand(input: string, rl: readline.Interface) {
         break;
       default:
         console.log(chalk.red(`✗ Unknown command: ${command}`));
-        console.log(chalk.gray('Enter a number (0-5) or type "menu" to see options.'));
+        console.log(chalk.gray('Enter a number (0-3) or type "menu" to see options.')); // Updated prompt range
     }
   }
 
@@ -319,8 +313,23 @@ async function main() {
       : chalk.red('Not running as root - some options will not work ✗') +
       '\n' + chalk.yellow('Restart with sudo to enable all features'));
 
+    // Show current status first
+    await showStatus();
+
+    // If root, automatically set to Cloudflare
+    if (isRoot()) {
+      console.log(chalk.blue('\nSetting DNS to Cloudflare (1.1.1.1) automatically...'));
+      await modifyDNSWithRoot(); // Defaults to Cloudflare
+      // Optional delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    } else {
+      console.log(chalk.yellow('\nCannot automatically set DNS without root privileges.'));
+      // Optional delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
     const rl = createInterface();
-    displayText('menu');
+    displayText('menu'); // Display menu after status and potential DNS change
     rl.prompt();
 
     rl.on('line', async (line) => {
